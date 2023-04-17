@@ -1,6 +1,8 @@
 # Auxiliary functions
 import pandas as pd
 from os.path import join as opj
+wildcard_constraints:
+    sample_name = '[^_\W]+'
 
 def read_samples(file):
     df = pd.read_csv(file)
@@ -30,16 +32,17 @@ def get_all_bams_per_sample(wildcards):
 
 
 SAMPLES = read_samples(config["sample_tsv"])
-OUTPUT_DIR = config["output_dir"]
+#OUTPUT_DIR = config["output_dir"]
 BB = config["backbones"] # "/Users/liting/01_data/20230407/backbones/BB41.fasta"
 REF = config["references"] # "references/GRCh37_decoy/references_hs37d5_hs37d5.fa"
 
-input_dir = "/Users/liting/01_data/20230407/"
+input_dir = "/Users/liting/01_data/20230407"
 out_dir = "/Users/liting/00_project/gwCyclomicsSeq/output"
 
 input_bams = []
 for sample in SAMPLES["sample_name"].unique():
     input_bams += list(SAMPLES[SAMPLES["sample_name"] == sample]['bam_name'].values)
+input_bams = [opj(input_dir, input1) for input1 in input_bams]
 
 def get_run_name(wildcards):
     run_names = SAMPLES.loc[wildcards.sample_name]['run_name']
@@ -47,12 +50,12 @@ def get_run_name(wildcards):
 
 
 SAMPLES['combined_prefix'] = SAMPLES.apply(lambda x: x['sample_name'] + '_'+ x['run_name'], axis = 1)
-combine_dedup = [x+"_deduplicated_all.bam" for x in SAMPLES['combined_prefix']]
+combine_dedup = [opj(out_dir, x+"_deduplicated_all.bam")  for x in SAMPLES['combined_prefix']]
 rule all:
     input:
         input_bams,
         combine_dedup,
-        expand("{sample_name}_stats.txt", sample_name=SAMPLES["sample_name"]),
+        expand(opj(out_dir, "{sample_name}_stats.txt"), sample_name=SAMPLES["sample_name"]),
 
 
 rule split_by_backbone:
@@ -61,13 +64,13 @@ rule split_by_backbone:
         bb=opj(input_dir, "backbones/BB41.fasta"),
         ref=opj(input_dir, "references/GRCh37_decoy/references_hs37d5_hs37d5.fa"),
     output:
-        with_bb="{sample_name}_{run_name}_reads_with_backbone.bam"Z,
-        no_bb="{sample_name}_{run_name}_reads_without_backbone.bam",
+        with_bb=opj(out_dir, "{sample_name}_{run_name}_reads_with_backbone.bam"),
+        no_bb=opj(out_dir, "{sample_name}_{run_name}_reads_without_backbone.bam"),
     shell:
         """
-        scripts/split_by_backbone.py --file_bam {input.bam} \\
-                                 --file-out-insert-with-backbone {output.with_bb} \\
-                                 --file-out-insert-no-backbone {output.no_bb}
+        python scripts/split_by_backbone.py -i {input.bam} \\
+                                 -b {output.with_bb} \\
+                                 -n {output.no_bb}
         """
 
 rule cutadapt_remove_bb:
@@ -78,7 +81,7 @@ rule cutadapt_remove_bb:
         adapter_cleaned_with_bb=opj(out_dir, "{sample_name}_{run_name}_reads_with_backbone_removed_adapter.bam")
     shell:
         """
-        bin/cutadapt_remove_bb.sh --input {input.split_by_backbone} \\
+        scripts/cutadapt_remove_bb.sh --input {input.split_by_backbone} \\
                                   --output {output.adapter_cleaned_with_bb} \\
                                   --backbone {input.bb}
         """
@@ -99,7 +102,7 @@ rule deduplication_without_bb:
         no_bb=opj(out_dir, "{sample_name}_{run_name}_reads_without_backbone.bam"),
         ref=opj(input_dir, "references/GRCh37_decoy/references_hs37d5_hs37d5.fa"),
     output:
-        dedup_no_bb="{sample_name}_{run_name}_adapter_cleaned_noBB.bam"
+        dedup_no_bb=opj(out_dir, "{sample_name}_{run_name}_adapter_cleaned_noBB.bam"),
     shell:
         """
         bin/deduplication.py {input.no_bb} {wildcards.sample_name} {wildcards.run_name} {input.ref}
@@ -110,7 +113,7 @@ rule combine_dedup:
         dedup_with_bb=opj(out_dir, "{sample_name}_{run_name}_adapter_cleaned_deduplicated_with_backbone.bam"),
         dedup_no_bb=opj(out_dir, "{sample_name}_{run_name}_adapter_cleaned_noBB.bam"),
     output:
-        dedup_combined=opj( out_dir, "{sample_name}_{run_name}_deduplicated_all.bam"),
+        dedup_combined=opj(out_dir, "{sample_name}_{run_name}_deduplicated_all.bam"),
     shell:
         """
         samtools merge -f {output.dedup_combined} {input.dedup_no_bb} {input.dedup_with_bb}
@@ -153,7 +156,7 @@ rule get_sample_stats:
     input:
         bam = rules.merge_all.output.bam_per_sample_no_bb
     output:
-        stats = "{sample_name}_stats.txt"
+        stats = opj(out_dir, "{sample_name}_stats.txt")
     shell:
         """
         bin/get_stats.sh --bam {input.bam}
