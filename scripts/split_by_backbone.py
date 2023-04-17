@@ -3,6 +3,9 @@ import pysam
 from pathlib import Path
 from datetime import datetime
 from tqdm import tqdm
+import subprocess
+import shlex
+
 
 
 
@@ -85,7 +88,7 @@ def main(in_bam_path, out_bam_path_with_backbone, out_bam_path_no_backbone):
     out_bam_no_backbone.close()
 
     print(
-        f"Split {aln_count} alignments with or without backbone in {datetime.now() - start_time}. {round(wbb_count/aln_count, 3)*100}% has backbone."
+        f"{in_bam_path} Split {aln_count} alignments with or without backbone in {datetime.now() - start_time}. {round(wbb_count/aln_count, 3)*100}% has backbone."
     )
 
 
@@ -102,6 +105,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     intermediate_bam_w_bb = args.file_out_insert_with_backbone.with_suffix(".unsorted.bam")
     intermediate_bam_no_bb = args.file_out_insert_no_backbone.with_suffix(".unsorted.bam")
+
 
     main(args.file_bam,
          intermediate_bam_w_bb,

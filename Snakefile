@@ -37,7 +37,7 @@ BB = config["backbones"] # "/Users/liting/01_data/20230407/backbones/BB41.fasta"
 REF = config["references"] # "references/GRCh37_decoy/references_hs37d5_hs37d5.fa"
 
 input_dir = "/Users/liting/01_data/20230407"
-out_dir = "/Users/liting/00_project/gwCyclomicsSeq/output"
+out_dir = "/Users/liting/00_projects/gwCyclomicsSeq/output/20230417"
 
 input_bams = []
 for sample in SAMPLES["sample_name"].unique():
@@ -76,15 +76,44 @@ rule split_by_backbone:
 rule cutadapt_remove_bb:
     input:
         split_by_backbone=opj(out_dir, "{sample_name}_{run_name}_reads_with_backbone.bam"),
-        bb=opj(input_dir, "backbones/BB41.fasta"),
+    params:
+        bb_type = "BB41C",
+        bb=opj(input_dir,"backbones/BB41.fasta"),
+        ref=opj(input_dir,"references/GRCh37_decoy/references_hs37d5_hs37d5.fa"),
+
     output:
-        adapter_cleaned_with_bb=opj(out_dir, "{sample_name}_{run_name}_reads_with_backbone_removed_adapter.bam")
+        adapter_cleaned_with_bb_fastq=opj(out_dir, "{sample_name}_{run_name}_reads_with_backbone_removed_adapter.fastq"),
+        info = opj(out_dir, "{sample_name}_{run_name}_cut.info"),
+        summary = opj(out_dir, "{sample_name}_{run_name}_cut.summary"),
+
     shell:
         """
-        scripts/cutadapt_remove_bb.sh --input {input.split_by_backbone} \\
-                                  --output {output.adapter_cleaned_with_bb} \\
-                                  --backbone {input.bb}
+        python scripts/cutadapt_remove_bb.py -i {input.split_by_backbone} \\
+                                             -o {output.adapter_cleaned_with_bb_fastq} \\
+                                            -b {params.bb} \\
+                                            -r {params.ref} \\
+                                            -t {params.bb_type} \\
+                                            -s {output.summary} \\
+                                            -s2 {output.info}
         """
+
+rule map_after_cutadapt:
+    input:
+        bam = rules.cutadapt_remove_bb.output.adapter_cleaned_with_bb_fastq,
+    params:
+        ref=opj(input_dir,"references/GRCh37_decoy/references_hs37d5_hs37d5.fa"),
+    threads:
+        16
+    output:
+        sam=temp(opj(out_dir, "{sample_name}_{run_name}_reads_with_backbone_removed_adapter.sam")),
+        adapter_cleaned_with_bb=opj(out_dir, "{sample_name}_{run_name}_reads_with_backbone_removed_adapter.bam"),
+    shell:
+        """
+        bwa mem -t {threads} {params.ref} {input.bam} > {output.sam};
+        samtools sort {output.sam} > {output.adapter_cleaned_with_bb};
+        samtools index {output.adapter_cleaned_with_bb};
+        """
+
 
 rule deduplication_bam_with_bb:
     input:
@@ -94,7 +123,7 @@ rule deduplication_bam_with_bb:
         dedup_with_bb=opj(out_dir, "{sample_name}_{run_name}_adapter_cleaned_deduplicated_with_backbone.bam"),
     shell:
         """
-        bin/deduplication.py {input.adapter_cleaned_with_bb} {wildcards.sample_name} {wildcards.run_name} {input.ref}
+        python scripts/deduplication.py {input.adapter_cleaned_with_bb} {wildcards.sample_name} {wildcards.run_name} {input.ref}
         """
 
 rule deduplication_without_bb:
@@ -105,7 +134,7 @@ rule deduplication_without_bb:
         dedup_no_bb=opj(out_dir, "{sample_name}_{run_name}_adapter_cleaned_noBB.bam"),
     shell:
         """
-        bin/deduplication.py {input.no_bb} {wildcards.sample_name} {wildcards.run_name} {input.ref}
+        python scripts/deduplication.py {input.no_bb} {wildcards.sample_name} {wildcards.run_name} {input.ref}
         """
 
 rule combine_dedup:
@@ -159,7 +188,7 @@ rule get_sample_stats:
         stats = opj(out_dir, "{sample_name}_stats.txt")
     shell:
         """
-        bin/get_stats.sh --bam {input.bam}
+        scripts/get_stats.sh --bam {input.bam}
         """
 
 
