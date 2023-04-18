@@ -40,55 +40,39 @@ def get_backbone_sequence(backbone_file):
 
 
 
-def main(in_bam, out_bam, backbone_file, backbone_type, reference, info, summary):
+def main(in_bam, trimmed, backbone_file, backbone_type, info, summary):
     # define parameters
     name = get_basename(in_bam)
     print("basename: ", name)
     backbone_forward = get_backbone_sequence(backbone_file)[backbone_type]
     backbone_reverse = reverse_complement(backbone_forward)
-    trimmed = f"{name}-trimmed.fastq"
     sam = f"{name}.sam"
     # defines commands
     cmd1 = f"bedtools bamtofastq -i {in_bam} -fq {name}.fastq"
-    # cmd2 = f"samtools view -c -F 260 {name}.fastq"
     file3 = open(summary, "w")
-    cmd3 = f"cutadapt -e 0.00064 -a {backbone_forward} -a {backbone_reverse} -g {backbone_forward} -g {backbone_reverse} --info-file {info} -o {trimmed} {name}.fastq"
-    file4 = open(sam, "w")
-    cmd4 = f"bwa mem {reference} {trimmed}"
-    file5 = open(out_bam, "wb")
-    cmd5 = f"samtools sort {sam}"
-    cmd6 = f"samtools index {out_bam}"
-    cmd7 = f"rm {sam}"
+    cmd2 = f"cutadapt -e 0.00064 -a {backbone_forward} -a {backbone_reverse} -g {backbone_forward} -g {backbone_reverse} --info-file {info} -o {trimmed} {name}.fastq"
     # execute commands
     subprocess.run(shlex.split(cmd1))
-    # subprocess.run(shlex.split(cmd2))
-    subprocess.run(shlex.split(cmd3), stdout=file3)
-    subprocess.run(shlex.split(cmd4), stdout=file4)
-    subprocess.run(shlex.split(cmd5), stdout=file5)
-    subprocess.run(shlex.split(cmd6))
-    subprocess.run(shlex.split(cmd7))
+    subprocess.run(shlex.split(cmd2), stdout=file3)
 
-    print("done with backbone removal + map to reference again.")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Remove adapter for reads containing backbone - aggressive"
     )
     parser.add_argument("-i", "--in-bam", type=str)
-    parser.add_argument("-o", "--out-bam", type=str)
+    parser.add_argument("-o", "--out-fastq", type=str)
     parser.add_argument("-b", "--backbone-file", type=str)
     parser.add_argument("-t", "--backbone-type", type=str, default="BB41C")
-    parser.add_argument("-r", "--reference-genome", type=str)
     parser.add_argument("-s", "--summary", type=str)
     parser.add_argument("-s2", "--info", type=str)
 
     args = parser.parse_args()
 
     main(args.in_bam,
-         args.out_bam,
+         args.out_fastq,
          args.backbone_file,
          args.backbone_type,
-         args.reference_genome,
          args.info,
          args.summary,
          )

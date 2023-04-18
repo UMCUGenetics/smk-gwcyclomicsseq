@@ -3,6 +3,7 @@ import pysam
 from pathlib import Path
 from datetime import datetime
 from tqdm import tqdm
+import os
 import subprocess
 import shlex
 
@@ -116,7 +117,6 @@ if __name__ == "__main__":
     pysam.sort("-o", str(args.file_out_insert_no_backbone), str(intermediate_bam_no_bb))
     pysam.index(str(args.file_out_insert_with_backbone))
     pysam.index(str(args.file_out_insert_no_backbone))
+    os.remove(intermediate_bam_no_bb)
+    os.remove(intermediate_bam_w_bb)
 
-
-    # test_bam = "output.bam"
-    # main(test_bam, "output_unsorted_test.bam")
