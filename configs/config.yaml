@@ -1,0 +1,12 @@
+references:
+  "/Users/liting/01_data/20230407/references/GRCh37_decoy/references_hs37d5_hs37d5.fa"
+backbones:
+  "/Users/liting/01_data/20230407/backbones/*"
+output_dir:
+  "test_output"
+sample_tsv:
+  "/Users/liting/01_data/20230407/samplesheet.csv"
+bams:
+  "/Users/liting/01_data/20230407/bams/*"
+dedup_script_path:
+  "/Users/liting/00_projects/FragmentOmics/cyclomicsConsensus/deduplication_cyclomicsseq.py"

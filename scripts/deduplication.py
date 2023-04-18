@@ -23,7 +23,7 @@ def write_sm_tag_to_bam(input_bam, SM_bam, SM_tag_value):
     return SM_bam
 
 
-def write_deduplicate(input_bam_path, target_bam_path, reference):
+def write_deduplicate(input_bam_path, target_bam_path, reference, SM_tag_value):
     with pysam.AlignmentFile(input_bam_path) as f:
         with sorted_bam_file(target_bam_path, origin_bam=f, ) as target_bam:
             for i, m in tqdm(enumerate(MoleculeIterator(
@@ -33,13 +33,11 @@ def write_deduplicate(input_bam_path, target_bam_path, reference):
                     every_fragment_as_molecule=False,
                     perform_qflag=False,
                     molecule_class_args={"reference": reference, "max_associated_fragments": 100},
-                    fragment_class_args={"assignment_radius": 20},
+                    fragment_class_args={"assignment_radius": 20, "rca_tag": "YM", "sample": SM_tag_value},
                     max_buffer_size=1000000,
                     yield_overflow=False,
             ))):
-                read_name = f'consensus_{m.get_a_reference_id()}_{i}'
-                # write tags to all fragments associated with the molecule
-                m.write_tags()
+                read_name = m.read_names[0]
                 m.write_pysam(target_bam,
                               consensus=True,
                               consensus_name=read_name,
@@ -51,9 +49,8 @@ if __name__=="__main__":
     parser = argparse.ArgumentParser(description='Deduplicate base on molecular location.')
     parser.add_argument('--read_bam', type=str,
                     help='bam file path')
-    parser.add_argument('--out_path', type=str,
-                    help='out path')
-    parser.add_argument('--prefix', type=str, help='prefix of the bam file name')
+    parser.add_argument('--out_bam', type=str,
+                    help='out bam including path')
     parser.add_argument('--SM', type=str, default=None, help="value to put in SM tag. Can skip is SM tag existed.")
     parser.add_argument('--ref', type=str, help='reference which bam file is mapped to. (str). Auto-detect is possible.')
     parser.add_argument('--merge', action='store_true', help='merge reads from different nanopore reads but covering the same start,'
@@ -63,10 +60,13 @@ if __name__=="__main__":
 
     timeA = time.time()
 
+    out_bam = os.path.splitext(args.out_bam)[0]
+    out_path = out_bam.split("/")[0]
+    prefix = out_bam.split("/")[-1]
     # SM_bam
-    SM_bam = f"{args.out_path}/{args.prefix}.SMtagged.sorted.bam"
+    SM_bam = f"{out_path}.SMtagged.sorted.bam"
     # deduplicated output bam
-    t_bam = f"{args.out_path}/{args.prefix}.tagged.deduplicated.bam"
+    t_bam = args.out_bam
 
     # autodetect reference:
     reference = None
@@ -88,7 +88,7 @@ if __name__=="__main__":
     else:
         input_bam = args.read_bam
 
-    write_deduplicate(input_bam, t_bam, reference)
+    write_deduplicate(input_bam, t_bam, reference, args.SM)
 
     pysam.index(str(t_bam))
 

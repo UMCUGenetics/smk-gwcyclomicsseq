@@ -1,0 +1,25 @@
+name: fragmentomics
+channels:
+  - defaults
+  - anaconda
+  - bioconda
+dependencies:
+  - python
+  - pip
+  - pip:
+      - pysam
+      - numpy
+      - pandas
+      - pyBigWig
+      - colorama
+      - cutadapt
+      - more-itertools
+      - matplotlib
+      - tabulate
+      - wheel
+      - setuptools
+      - statsmodels
+      - cached_property
+      - biopython
+      - pysamiterators
+      - "--editable=git+https://github.com/zztin/fragmentomics2.git@master#egg=singlecellmultiomics"
