@@ -56,7 +56,7 @@ rule all:
 
 rule split_by_backbone:
     input:
-        bam=opj(input_dir, "bams/{sample_name}_{run_name}.YM_gt_3.bam"),
+        bam=opj(input_dir, "{sample_name}_{run_name}.YM_gt_3.bam"),
         bb=BB,
         ref=config['reference'],
     output:
@@ -80,6 +80,10 @@ rule deduplication_bam_with_bb:
         out_bam=opj(out_dir, "{sample_name}_{run_name}_reads_with_backbone.dedup.bam"),
     conda:
         "envs/dedup-pip.yaml"
+    resources:
+        runtime_min=400,
+        cpus = 1,
+        mem_mb = 10000,
     shell:
         """
         dedup --read_bam {input.bam} \\
@@ -99,7 +103,8 @@ rule cutadapt_remove_bb:
         adapter_cleaned_with_bb_fastq=opj(out_dir, "{sample_name}_{run_name}_reads_with_backbone_removed_adapter.fastq"),
         info = opj(out_dir, "{sample_name}_{run_name}_cut.info"),
         summary = opj(out_dir, "{sample_name}_{run_name}_cut.summary"),
-
+    conda:
+        "envs/align.yaml"
     shell:
         """
         python scripts/cutadapt_remove_bb.py -i {input.split_by_backbone} \\
@@ -140,6 +145,10 @@ rule deduplication_without_bb:
         out_bam=opj(out_dir, "{sample_name}_{run_name}_adapter_cleaned_noBB.bam"),
     conda:
         "envs/dedup-pip.yaml"
+    resources:
+        runtime_min=400,
+        cpus = 1,
+        mem_mb = 10000,
     shell:
         """
         dedup --read_bam {input.bam} \\
