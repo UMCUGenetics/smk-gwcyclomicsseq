@@ -127,7 +127,8 @@ rule cutadapt_remove_bb:
     output:
         fastq = temp( opj(out_dir,"{sample_name}_{run_name}-extracted.fastq")),
         adapter_cleaned_with_bb_fastq = opj(out_dir,"{sample_name}_{run_name}_reads_with_backbone_removed_adapter.fastq"),
-        info =  opj(out_dir,"{sample_name}_{run_name}-cutadapt.info"),
+        info =  opj(out_dir,"{sample_name}_{run_name}-cutadapt.info.txt"),
+        summary = opj(out_dir,"{sample_name}_{run_name}-cutadapt.summary.txt"),
     conda:
         "envs/align.yaml"
     shell:
@@ -135,7 +136,7 @@ rule cutadapt_remove_bb:
         bedtools bamtofastq -i {input.split_by_backbone} -fq {output.fastq};
         cutadapt -e 0.00064 -a {params.backbone_forward} -a {params.backbone_reverse} \\
                             -g {params.backbone_forward} -g {params.backbone_reverse} \\
-                            --info-file {output.info} -o {output.adapter_cleaned_with_bb_fastq} {output.fastq}
+                            --info-file {output.info} -o {output.adapter_cleaned_with_bb_fastq} {output.fastq} > {output.summary}
         """
 
 
