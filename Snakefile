@@ -168,6 +168,7 @@ rule combine_dedup:
     shell:
         """
         samtools merge -f {output.dedup_combined} {input.dedup_no_bb} {input.dedup_with_bb}
+        samtools index {output.dedup_combined}
         """
 
 
