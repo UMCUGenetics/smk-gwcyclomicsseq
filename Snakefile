@@ -4,6 +4,29 @@ from os.path import join as opj
 wildcard_constraints:
     sample_name = '[^_\W]+'
 
+
+complement_translate = str.maketrans('ATCGNatcgn', 'TAGCNtagcn')
+def reverse_complement(seq):
+    """Obtain reverse complement of seq
+    returns:
+        reverse complement (str)
+    """
+    return seq.translate(complement_translate)[::-1]
+
+
+def get_backbone_sequence(backbone_file):
+    with open(backbone_file) as f:
+        x = f.readlines()
+    dict_barcode = {}
+    for line in x:
+        if line.startswith(">"):
+            seq_name = line.split(">")[-1].strip()
+        else:
+            sequence = line.strip()
+            dict_barcode[seq_name] = sequence
+    return dict_barcode
+
+
 def read_samples(file):
     df = pd.read_csv(file)
     return df
@@ -91,28 +114,28 @@ rule deduplication_bam_with_bb:
               --ref {input.ref}
         """
 
-
+# backbone strings
+bb_type = "BB41C"
+backbone_forward = get_backbone_sequence(config["backbones"])[bb_type]
+backbone_reverse = reverse_complement(backbone_forward)
 rule cutadapt_remove_bb:
     input:
-        split_by_backbone=rules.deduplication_bam_with_bb.output.out_bam,
+        split_by_backbone = rules.deduplication_bam_with_bb.output.out_bam,
     params:
-        bb_type = "BB41C",
-        bb=BB,
-
+        backbone_forward = backbone_forward,
+        backbone_reverse = backbone_reverse,
     output:
-        adapter_cleaned_with_bb_fastq=opj(out_dir, "{sample_name}_{run_name}_reads_with_backbone_removed_adapter.fastq"),
-        info = opj(out_dir, "{sample_name}_{run_name}_cut.info"),
-        summary = opj(out_dir, "{sample_name}_{run_name}_cut.summary"),
+        fastq = temp("{sample_name}_{run_name}-extracted.fastq"),
+        adapter_cleaned_with_bb_fastq = opj(out_dir,"{sample_name}_{run_name}_reads_with_backbone_removed_adapter.fastq"),
+        info = "{sample_name}_{run_name}-cutadapt.info"
     conda:
         "envs/align.yaml"
     shell:
         """
-        python scripts/cutadapt_remove_bb.py -i {input.split_by_backbone} \\
-                                             -o {output.adapter_cleaned_with_bb_fastq} \\
-                                            -b {params.bb} \\
-                                            -t {params.bb_type} \\
-                                            -s {output.summary} \\
-                                            -s2 {output.info}
+        bedtools bamtofastq -i {input.split_by_backbone} -fq {output.fastq};
+        cutadapt -e 0.00064 -a {params.backbone_forward} -a {params.backbone_reverse} \\
+                            -g {params.backbone_forward} -g {params.backbone_reverse} \\
+                            --info-file {output.info} -o {output.adapter_cleaned_with_bb_fastq} {output.fastq}
         """
 
 

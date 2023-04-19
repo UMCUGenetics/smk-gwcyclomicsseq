@@ -1,9 +1,9 @@
 reference:
   "/Users/liting/01_data/20230407/references/GRCh37_decoy/references_hs37d5_hs37d5.fa"
 backbones:
-  "/Users/liting/01_data/20230407/backbones/*"
+  "/Users/liting/01_data/20230407/backbones/BB41.fasta"
 input_dir:
-  "/Users/liting/01_data/20230407"
+  "/Users/liting/01_data/20230407/bams"
 out_dir:
   "/Users/liting/01_data/20230407/20230419-output1"
 sample_tsv:
