@@ -31,10 +31,9 @@ def get_all_bams_per_sample(wildcards):
 
 SAMPLES = read_samples(config["sample_tsv"])
 BB = config["backbones"] # "/Users/liting/01_data/20230407/backbones/BB41.fasta"
-REF = config["references"] # "references/GRCh37_decoy/references_hs37d5_hs37d5.fa"
 
-input_dir = "/Users/liting/01_data/20230407"
-out_dir = "/Users/liting/00_projects/gwCyclomicsSeq/output/20230417"
+input_dir = config["input_dir"]
+out_dir = config["out_dir"]
 
 input_bams = []
 for sample in SAMPLES["sample_name"].unique():
@@ -59,10 +58,12 @@ rule split_by_backbone:
     input:
         bam=opj(input_dir, "bams/{sample_name}_{run_name}.YM_gt_3.bam"),
         bb=opj(input_dir, "backbones/BB41.fasta"),
-        ref=opj(input_dir, "references/GRCh37_decoy/references_hs37d5_hs37d5.fa"),
+        ref=config['reference'],
     output:
         with_bb=opj(out_dir, "{sample_name}_{run_name}_reads_with_backbone.bam"),
         no_bb=opj(out_dir, "{sample_name}_{run_name}_reads_without_backbone.bam"),
+    conda:
+        "envs/align.yaml"
     shell:
         """
         python scripts/split_by_backbone.py -i {input.bam} \\
@@ -74,11 +75,9 @@ rule split_by_backbone:
 rule deduplication_bam_with_bb:
     input:
         bam=opj(out_dir, "{sample_name}_{run_name}_reads_with_backbone.bam"),
-        ref=opj(input_dir, "references/GRCh37_decoy/references_hs37d5_hs37d5.fa"),
+        ref=config['reference'],
     output:
         out_bam=opj(out_dir, "{sample_name}_{run_name}_reads_with_backbone.dedup.bam"),
-    params:
-        path_dedup = config['dedup_script_path']
     conda:
         "envs/dedup-pip.yaml"
     shell:
@@ -95,13 +94,14 @@ rule cutadapt_remove_bb:
     params:
         bb_type = "BB41C",
         bb=opj(input_dir,"backbones/BB41.fasta"),
-        ref=opj(input_dir,"references/GRCh37_decoy/references_hs37d5_hs37d5.fa"),
+        ref=config['reference'],
 
     output:
         adapter_cleaned_with_bb_fastq=opj(out_dir, "{sample_name}_{run_name}_reads_with_backbone_removed_adapter.fastq"),
         info = opj(out_dir, "{sample_name}_{run_name}_cut.info"),
         summary = opj(out_dir, "{sample_name}_{run_name}_cut.summary"),
-
+    conda:
+        "envs/align.yaml"
     shell:
         """
         python scripts/cutadapt_remove_bb.py -i {input.split_by_backbone} \\
@@ -117,12 +117,14 @@ rule map_after_cutadapt:
     input:
         bam = rules.cutadapt_remove_bb.output.adapter_cleaned_with_bb_fastq,
     params:
-        ref=opj(input_dir,"references/GRCh37_decoy/references_hs37d5_hs37d5.fa"),
+        ref=config['reference']
     threads:
         16
     output:
         sam=temp(opj(out_dir, "{sample_name}_{run_name}_reads_with_backbone_removed_adapter.sam")),
         adapter_cleaned_with_bb=opj(out_dir, "{sample_name}_{run_name}_adapter_cleaned_deduplicated_with_backbone.bam"),
+    conda:
+        "envs/align.yaml"
     shell:
         """
         bwa mem -t {threads} {params.ref} {input.bam} > {output.sam};
@@ -135,11 +137,9 @@ rule map_after_cutadapt:
 rule deduplication_without_bb:
     input:
         bam=opj(out_dir, "{sample_name}_{run_name}_reads_without_backbone.bam"),
-        ref=opj(input_dir, "references/GRCh37_decoy/references_hs37d5_hs37d5.fa"),
+        ref=config['reference'],
     output:
         out_bam=opj(out_dir, "{sample_name}_{run_name}_adapter_cleaned_noBB.bam"),
-    params:
-        path_dedup = config['dedup_script_path']
     conda:
         "envs/dedup-pip.yaml"
     shell:
@@ -156,6 +156,8 @@ rule combine_dedup:
         dedup_no_bb=opj(out_dir, "{sample_name}_{run_name}_adapter_cleaned_noBB.bam"),
     output:
         dedup_combined=opj(out_dir, "{sample_name}_{run_name}_clean.bam"),
+    conda:
+        "envs/align.yaml"
     shell:
         """
         samtools merge -f {output.dedup_combined} {input.dedup_no_bb} {input.dedup_with_bb}
@@ -167,6 +169,8 @@ rule merge_no_bb:
         bams=get_no_bb_bams_per_sample
     output:
         bam_per_sample_no_bb=opj(out_dir, "{sample_name}_all_noBB.bam")
+    conda:
+        "envs/align.yaml"
     shell:
         """
         samtools merge -f {output.bam_per_sample_no_bb} {input.bams}
@@ -178,6 +182,8 @@ rule merge_with_bb:
         bams=get_w_bb_bams_per_sample
     output:
         bam_per_sample_no_bb=opj(out_dir, "{sample_name}_all_withBB.bam")
+    conda:
+        "envs/align.yaml"
     shell:
         """
         samtools merge -f {output.bam_per_sample_no_bb} {input.bams}
@@ -189,6 +195,8 @@ rule merge_all:
         bams=get_all_bams_per_sample
     output:
         bam_per_sample_no_bb=opj(out_dir, "{sample_name}_clean_merge_runs.bam")
+    conda:
+        "envs/align.yaml"
     shell:
         """
         samtools merge -f {output.bam_per_sample_no_bb} {input.bams}
@@ -200,6 +208,8 @@ rule get_sample_stats:
         bam = rules.merge_all.output.bam_per_sample_no_bb
     output:
         stats = opj(out_dir, "{sample_name}_stats.txt")
+    conda:
+        "envs/align.yaml"
     shell:
         """
         scripts/get_stats.sh {input.bam} {output.stats}
