@@ -1,10 +1,10 @@
 reference:
-  "/hpc/compgen/projects/gw_cfdna/gw_cyclomics/analysis/lchen/smk-gwcyclomicsseq/data/reference/hs37d5.fasta"
+  "/Users/liting/01_data/20230407/references/GRCh37_decoy/references_hs37d5_hs37d5.fa"
 backbones:
-  "/hpc/compgen/projects/gw_cfdna/gw_cyclomics/analysis/lchen/smk-gwcyclomicsseq/data/backbones/*"
+  "/Users/liting/01_data/20230407/backbones/*"
 input_dir:
-  "/hpc/compgen/projects/gw_cfdna/gw_cyclomics/analysis/lchen/smk-gwcyclomicsseq/data"
+  "/Users/liting/01_data/20230407"
 out_dir:
-  "/hpc/compgen/projects/gw_cfdna/gw_cyclomics/analysis/lchen/smk-gwcyclomicsseq-working/20230418-test-output"
+  "/Users/liting/01_data/20230407/20230419-output1"
 sample_tsv:
-  "/hpc/compgen/projects/gw_cfdna/gw_cyclomics/analysis/lchen/smk-gwcyclomicsseq/data/samplesheet.csv"
+  "/Users/liting/01_data/20230407/samplesheet.csv"

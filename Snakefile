@@ -97,7 +97,7 @@ rule cutadapt_remove_bb:
         ref=config['reference'],
 
     output:
-        adapter_cleaned_with_bb_fastq=opj(out_dir, "{sample_name}_{run_name}_reads_with_backbone_removed_adapter.fastq"),
+        adapter_cleaned_with_bb_fastq=opj(out_dir, "{sample_name}_{run_name}1.fastq"),
         info = opj(out_dir, "{sample_name}_{run_name}_cut.info"),
         summary = opj(out_dir, "{sample_name}_{run_name}_cut.summary"),
     conda:
