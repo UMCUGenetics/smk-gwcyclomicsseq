@@ -44,18 +44,16 @@ def main(in_bam, trimmed, backbone_file, backbone_type, info, summary):
     # define parameters
     name = get_basename(in_bam)
     print("basename: ", name)
-    print("output file missing info:", info)
-    print("output file missing trimmed:", trimmed)
-    print(summary)
     backbone_forward = get_backbone_sequence(backbone_file)[backbone_type]
     backbone_reverse = reverse_complement(backbone_forward)
+    sam = f"{name}.sam"
     # defines commands
     cmd1 = f"bedtools bamtofastq -i {in_bam} -fq {name}.fastq"
-    file2 = open(summary, "w")
+    file3 = open(summary, "w")
     cmd2 = f"cutadapt -e 0.00064 -a {backbone_forward} -a {backbone_reverse} -g {backbone_forward} -g {backbone_reverse} --info-file {info} -o {trimmed} {name}.fastq"
     # execute commands
     subprocess.run(shlex.split(cmd1))
-    subprocess.run(shlex.split(cmd2), stdout=file2)
+    subprocess.run(shlex.split(cmd2), stdout=file3)
 
 
 if __name__ == "__main__":

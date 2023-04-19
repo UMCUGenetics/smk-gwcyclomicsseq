@@ -94,14 +94,13 @@ rule cutadapt_remove_bb:
     params:
         bb_type = "BB41C",
         bb=opj(input_dir,"backbones/BB41.fasta"),
-        ref=config['reference'],
+        ref=opj(input_dir,"references/GRCh37_decoy/references_hs37d5_hs37d5.fa"),
 
     output:
-        adapter_cleaned_with_bb_fastq=opj(out_dir, "{sample_name}_{run_name}1.fastq"),
+        adapter_cleaned_with_bb_fastq=opj(out_dir, "{sample_name}_{run_name}_reads_with_backbone_removed_adapter.fastq"),
         info = opj(out_dir, "{sample_name}_{run_name}_cut.info"),
         summary = opj(out_dir, "{sample_name}_{run_name}_cut.summary"),
-    conda:
-        "envs/align.yaml"
+
     shell:
         """
         python scripts/cutadapt_remove_bb.py -i {input.split_by_backbone} \\
