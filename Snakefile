@@ -57,7 +57,7 @@ rule all:
 rule split_by_backbone:
     input:
         bam=opj(input_dir, "bams/{sample_name}_{run_name}.YM_gt_3.bam"),
-        bb=opj(input_dir, "backbones/BB41.fasta"),
+        bb=BB,
         ref=config['reference'],
     output:
         with_bb=opj(out_dir, "{sample_name}_{run_name}_reads_with_backbone.bam"),
@@ -93,8 +93,7 @@ rule cutadapt_remove_bb:
         split_by_backbone=rules.deduplication_bam_with_bb.output.out_bam,
     params:
         bb_type = "BB41C",
-        bb=opj(input_dir,"backbones/BB41.fasta"),
-        ref=opj(input_dir,"references/GRCh37_decoy/references_hs37d5_hs37d5.fa"),
+        bb=BB,
 
     output:
         adapter_cleaned_with_bb_fastq=opj(out_dir, "{sample_name}_{run_name}_reads_with_backbone_removed_adapter.fastq"),
