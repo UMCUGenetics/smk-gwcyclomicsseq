@@ -125,9 +125,9 @@ rule cutadapt_remove_bb:
         backbone_forward = backbone_forward,
         backbone_reverse = backbone_reverse,
     output:
-        fastq = temp("{sample_name}_{run_name}-extracted.fastq"),
+        fastq = temp( opj(out_dir,"{sample_name}_{run_name}-extracted.fastq")),
         adapter_cleaned_with_bb_fastq = opj(out_dir,"{sample_name}_{run_name}_reads_with_backbone_removed_adapter.fastq"),
-        info = "{sample_name}_{run_name}-cutadapt.info"
+        info =  opj(out_dir,"{sample_name}_{run_name}-cutadapt.info"),
     conda:
         "envs/align.yaml"
     shell:
