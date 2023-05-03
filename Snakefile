@@ -89,6 +89,7 @@ rule split_by_backbone:
         runtime_min=15,
         cpus = 1,
         mem_mb = 5000,
+    priority: 50
     conda:
         "envs/align.yaml"
     shell:
@@ -107,6 +108,7 @@ rule deduplication_bam_with_bb:
         out_bam=opj(out_dir, "{sample_name}_{run_name}_reads_with_backbone.dedup.bam"),
     conda:
         "envs/dedup-pip.yaml"
+    priority: 2
     resources:
         runtime_min=400,
         cpus = 1,
@@ -133,6 +135,7 @@ rule cutadapt_remove_bb:
         adapter_cleaned_with_bb_fastq = opj(out_dir,"{sample_name}_{run_name}_reads_with_backbone_removed_adapter.fastq"),
         info =  opj(out_dir,"{sample_name}_{run_name}-cutadapt.info"),
         summary = opj(out_dir,"{sample_name}_{run_name}-cutadapt.summary.txt"),
+    priority: 50
     resources:
         runtime_min=30,
         cpus = 2,
@@ -160,6 +163,7 @@ rule map_after_cutadapt:
         adapter_cleaned_with_bb=opj(out_dir, "{sample_name}_{run_name}_adapter_cleaned_deduplicated_with_backbone.bam"),
     conda:
         "envs/align.yaml"
+    priority: 50
     resources:
         runtime_min=120,
         cpus = 32,
@@ -181,6 +185,7 @@ rule deduplication_without_bb:
         out_bam=opj(out_dir, "{sample_name}_{run_name}_adapter_cleaned_noBB.bam"),
     conda:
         "envs/dedup-pip.yaml"
+    priority: 2
     resources:
         runtime_min=400,
         cpus = 1,
@@ -201,13 +206,14 @@ rule combine_dedup:
         dedup_combined=opj(out_dir, "{sample_name}_{run_name}_clean.bam"),
     conda:
         "envs/align.yaml"
+    priority: 50
     resources:
         runtime_min=180,
         cpus = 2,
         mem_mb = 16000,
     shell:
         """
-        samtools merge -f {output.dedup_combined} {input.dedup_no_bb} {input.dedup_with_bb}
+        samtools merge -f {output.dedup_combined} {input.dedup_no_bb} {input.dedup_with_bb};
         samtools index {output.dedup_combined}
         """
 
@@ -219,13 +225,15 @@ rule merge_no_bb:
         bam_per_sample_no_bb=opj(out_dir, "{sample_name}_all_noBB.bam")
     conda:
         "envs/align.yaml"
+    priority: 50
     resources:
         runtime_min=180,
         cpus = 2,
         mem_mb = 16000,
     shell:
         """
-        samtools merge -f {output.bam_per_sample_no_bb} {input.bams}
+        samtools merge -f {output.bam_per_sample_no_bb} {input.bams};
+        samtools index {output.bam_per_sample_no_bb};
         """
 
 
@@ -236,13 +244,15 @@ rule merge_with_bb:
         bam_per_sample_no_bb=opj(out_dir, "{sample_name}_all_withBB.bam")
     conda:
         "envs/align.yaml"
+    priority: 49
     resources:
         runtime_min=180,
         cpus = 2,
         mem_mb = 16000,
     shell:
         """
-        samtools merge -f {output.bam_per_sample_no_bb} {input.bams}
+        samtools merge -f {output.bam_per_sample_no_bb} {input.bams};
+        samtools index {output.bam_per_sample_no_bb};
         """
 
 
@@ -253,13 +263,15 @@ rule merge_all:
         bam_per_sample_no_bb=opj(out_dir, "{sample_name}_clean_merge_runs.bam")
     conda:
         "envs/align.yaml"
+    priority: 48
     resources:
         runtime_min=180,
         cpus = 2,
         mem_mb = 16000,
     shell:
         """
-        samtools merge -f {output.bam_per_sample_no_bb} {input.bams}
+        samtools merge -f {output.bam_per_sample_no_bb} {input.bams};
+        samtools index {output.bam_per_sample_no_bb}
         """
 
 
@@ -270,6 +282,7 @@ rule get_sample_stats:
         stats = opj(out_dir, "{sample_name}_stats.txt")
     conda:
         "envs/align.yaml"
+    priority: 50
     resources:
         runtime_min=180,
         cpus = 2,
