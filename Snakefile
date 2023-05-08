@@ -75,6 +75,7 @@ rule all:
         input_bams,
         combine_dedup,
         expand(opj(out_dir, "{sample_name}_stats.txt"), sample_name=SAMPLES["sample_name"]),
+        expand(opj(out_dir, "{sample_name}.length.stats"), sample_name=SAMPLES["sample_name"])
 
 
 rule split_by_backbone:
@@ -234,15 +235,9 @@ rule merge_all:
         samtools merge -f {output.bam_per_sample_no_bb} {input.bams}
         """
 
-
-rule get_sample_stats:
-    input:
-        bam = rules.merge_all.output.bam_per_sample_no_bb
-    output:
-        stats = opj(out_dir, "{sample_name}_stats.txt")
-    conda:
-        "envs/align.yaml"
-    shell:
-        """
-        scripts/get_stats.sh {input.bam} {output.stats}
-        """
+onsuccess:
+    print("Workflow finished, no error")
+    shell("mail -s 'Workflow-illumina finished no error' l.t.chen-4@umcutrecht.nl <  {log}" )
+onerror:
+    print("An error occurred")
+    shell("mail -s 'an error occurred' l.t.chen-4@umcutrecht.nl <  {log}" )

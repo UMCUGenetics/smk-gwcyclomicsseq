@@ -1,12 +1,12 @@
-# This script convert csv copied from google drive 20230321-GWC-metadata-Dami_v1.0 "RunName" and "SampleName" columns and convert them to desired samplesheet.csv format.
-
+# This script convert csv copied (to "Numbers") from google drive 20230321-GWC-metadata-Dami_v1.0 "RunName" and "SampleName" columns and convert them to desired samplesheet.csv format.
+import pandas as pd
 # Select a genome reference
 
-# genome_reference = "GCh38.p14"
-genome_reference = "hs37d5"
+genome_reference = "GRCh38Decoy"
+#genome_reference = "hs37d5"
 
 # Enter filename
-file1 = "/Users/liting/Desktop/hg37.csv"
+file1 = "/Users/liting/Desktop/hg38_no_nobb.csv"
 
 # Parsing
 with open(file1) as f:
@@ -34,4 +34,4 @@ df = df.sort_values('bam_name')
 df
 
 # Write CSV
-df.to_csv("/Users/liting/01_data/20230407/samplesheet_hg37.csv", index=False)
+df.to_csv("/Users/liting/Desktop/samplesheet_hg38_new.csv", index=False)

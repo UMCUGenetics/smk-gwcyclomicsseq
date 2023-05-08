@@ -1,0 +1,15 @@
+name: snakemake-pipeline
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - bbmap=38.79
+  - bioconductor-genomeinfodb
+  - bioconductor-genomicranges
+  - bioconductor-hmmcopy
+  - bwa=0.7.17
+  - fastqc=0.11.9
+  - multiqc=1.8
+  - picard=2.22.2=0
+  - r-ichorcna=0.3.2-0
+  - samtools=1.12

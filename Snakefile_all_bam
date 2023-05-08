@@ -1,0 +1,62 @@
+
+rule filter_and_index:
+    input:
+        "raw/{sample}.bam"
+    output:
+        bam="output/{sample}.filtered.bam",
+        sorted_bam = "output/{sample}.filtered.sorted.bam",
+        CRAM="output/{sample}.filtered.CRAM",
+        bai="output/{sample}.filtered.sorted.bam.bai",
+        length= "output/{sample_name}.length.stats",
+    params:
+        genome = config['genome']
+    log:
+        "results/logs/{sample}.filter_and_index.log.txt"
+    threads: 8
+    resources:
+        cpus=8,
+        runtime='4h',
+        mem_mb=8000,
+    conda: "envs/picard.yaml"
+    shell:
+        """
+        samtools view {input} -h -q 5 -F 4 -F 256 -F 1024 -F 2048 -@ {threads} -b > {output.bam};
+        samtools view {input} -h -q 5 -F 4 -F 256 -F 1024 -F 2048 -@ {threads} -T {params.genome} -C > {output.CRAM};
+        samtools sort {output.bam} > {output.sorted_bam};
+        samtools index -@ {threads} {output.sorted_bam} > {output.bai};
+        samtools stats -@ {threads} {input.bam} > {output.length}
+
+        """
+        # -h: include header
+        # -q 5: only reads with quality >5
+        # -F 4: not unmapped
+        # -F 256: no secondary alignment; thus primary alignment
+        # -F 1024: no PCR duplicate
+
+
+rule picard_InsertMatrix:
+    input:
+        bam=rules.filter_and_index.output.sorted_bam,
+    output:
+        length="results/fragmentation/{sample}_insert_size_metrics.txt",
+        pdf="results/fragmentation/{sample}_insert_size.pdf"
+    params:
+        TMP_DIR="results/tmpdir"
+    resources:
+        mem_mb=8000,
+        cpus=8,
+        runtime='4h',
+    threads: 8
+    log:
+        Log="results/logs/{sample}.picardFragment.log.txt"
+    conda: "envs/picard.yaml"
+    shell:
+        """
+        picard -Xmx8g CollectInsertSizeMetrics INPUT={input.bam} OUTPUT={output.length} Histogram_FILE={output.pdf} M=0.001 &> {log}
+        """
+onsuccess:
+    print("Workflow finished, no error")
+    shell("mail -s 'Workflow-illumina finished no error' l.t.chen-4@umcutrecht.nl <  {log}" )
+onerror:
+    print("An error occurred")
+    shell("mail -s 'an error occurred' l.t.chen-4@umcutrecht.nl <  {log}" )
