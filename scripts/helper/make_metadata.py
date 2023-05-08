@@ -5,11 +5,14 @@ import pandas as pd
 genome_reference = "GRCh38Decoy"
 #genome_reference = "hs37d5"
 
-# Enter filename
-file1 = "/Users/liting/Desktop/hg38_no_nobb.csv"
+# Filename exported from google sheet
+file_in = "/Users/liting/Desktop/hg37.csv"
+
+# outfile
+file_out = "/Users/liting/01_data/20230407/samplesheet_hg37.csv"
 
 # Parsing
-with open(file1) as f:
+with open(file_in) as f:
     b = f.readlines()
     
 b = [line.split(",") for line in b]
@@ -31,7 +34,6 @@ df.columns = ['bam_name', 'sample_name', 'run_name' ]
 df['genome_reference'] = genome_reference
 df = df.sort_values('bam_name')
 # Check if data is correct
-df
 
 # Write CSV
-df.to_csv("/Users/liting/Desktop/samplesheet_hg38_new.csv", index=False)
+df.to_csv(file_out, index=False)
