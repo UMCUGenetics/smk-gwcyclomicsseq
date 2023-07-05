@@ -4,6 +4,7 @@ from os.path import join as opj
 wildcard_constraints:
     sample_name = '[^_\W]+'
 
+bb_type = config['bb_type']
 
 complement_translate = str.maketrans('ATCGNatcgn', 'TAGCNtagcn')
 def reverse_complement(seq):
@@ -33,7 +34,7 @@ def read_samples(file):
 
 def get_no_bb_bams_per_sample(wildcards):
     run_names = SAMPLES[SAMPLES['sample_name'] == wildcards.sample_name]['run_name'].values
-    bam_files = [f"{wildcards}_{run_name}_adapter_cleaned_noBB.bam" for run_name in run_names]
+    bam_files = [f"{wildcards}_{run_name}_dedup_noBB.bam" for run_name in run_names]
     bam_files = [opj(out_dir,bamfile) for bamfile in bam_files]
     return bam_files
 
@@ -122,7 +123,6 @@ rule deduplication_bam_with_bb:
         """
 
 # backbone strings
-bb_type = "BB41C"
 backbone_forward = get_backbone_sequence(config["backbones"])[bb_type]
 backbone_reverse = reverse_complement(backbone_forward)
 rule cutadapt_remove_bb:
@@ -132,7 +132,7 @@ rule cutadapt_remove_bb:
         backbone_forward = backbone_forward,
         backbone_reverse = backbone_reverse,
     output:
-        fastq = temp( opj(out_dir,"{sample_name}_{run_name}-extracted.fastq")),
+        fastq = temp( opj(out_dir,"{sample_name}_{run_name}-extracted.fastq.gz")),
         adapter_cleaned_with_bb_fastq = opj(out_dir,"{sample_name}_{run_name}_reads_with_backbone_removed_adapter.fastq"),
         info =  opj(out_dir,"{sample_name}_{run_name}-cutadapt.info"),
         summary = opj(out_dir,"{sample_name}_{run_name}-cutadapt.summary.txt"),
@@ -156,7 +156,7 @@ rule cutadapt_remove_bb:
 
 rule map_after_cutadapt:
     input:
-        bam = rules.cutadapt_remove_bb.output.adapter_cleaned_with_bb_fastq,
+        fastq = rules.cutadapt_remove_bb.output.adapter_cleaned_with_bb_fastq,
     params:
         ref=config['reference']
     threads:
@@ -173,7 +173,7 @@ rule map_after_cutadapt:
         mem_mb = 16000,
     shell:
         """
-        bwa mem -t {threads} {params.ref} {input.bam} > {output.sam};
+        bwa mem -t {threads} {params.ref} {input.fastq} > {output.sam};
         samtools sort {output.sam} > {output.adapter_cleaned_with_bb};
         samtools index {output.adapter_cleaned_with_bb};
         """
@@ -185,7 +185,7 @@ rule deduplication_without_bb:
         bam=opj(out_dir, "{sample_name}_{run_name}_reads_without_backbone.bam"),
         ref=config['reference'],
     output:
-        out_bam=opj(out_dir, "{sample_name}_{run_name}_adapter_cleaned_noBB.bam"),
+        out_bam=opj(out_dir, "{sample_name}_{run_name}_dedup_noBB.bam"),
     conda:
         "envs/dedup-pip.yaml"
     priority: 2
@@ -204,7 +204,7 @@ rule deduplication_without_bb:
 rule combine_dedup:
     input:
         dedup_with_bb=opj(out_dir, "{sample_name}_{run_name}_adapter_cleaned_deduplicated_with_backbone.bam"),
-        dedup_no_bb=opj(out_dir, "{sample_name}_{run_name}_adapter_cleaned_noBB.bam"),
+        dedup_no_bb=rules.deduplication_without_bb.output.out_bam,
     output:
         dedup_combined=opj(out_dir, "{sample_name}_{run_name}_clean.bam"),
     conda:
