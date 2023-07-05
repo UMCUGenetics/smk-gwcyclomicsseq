@@ -4,7 +4,6 @@ from os.path import join as opj
 wildcard_constraints:
     sample_name = '[^_\W]+'
 
-bb_type = config['bb_type']
 
 complement_translate = str.maketrans('ATCGNatcgn', 'TAGCNtagcn')
 def reverse_complement(seq):
@@ -32,6 +31,7 @@ def read_samples(file):
     df = pd.read_csv(file)
     return df
 
+
 def get_no_bb_bams_per_sample(wildcards):
     run_names = SAMPLES[SAMPLES['sample_name'] == wildcards.sample_name]['run_name'].values
     bam_files = [f"{wildcards}_{run_name}_dedup_noBB.bam" for run_name in run_names]
@@ -53,16 +53,30 @@ def get_all_bams_per_sample(wildcards):
     return bam_files
 
 
-SAMPLES = read_samples(config["sample_tsv"])
-BB = config["backbones"] # "/Users/liting/01_data/20230407/backbones/BB41.fasta"
+def get_backbone_forward(wildcards):
+    bb_type = SAMPLES[SAMPLES['sample_name'] == wildcards.sample_name]['bb_type'].values
+    backbone_forward = get_backbone_sequence(config["backbones"])[bb_type]
+    return backbone_forward
 
+
+def get_backbone_reverse(wildcards):
+    bb_type = SAMPLES[SAMPLES['sample_name'] == wildcards.sample_name]['bb_type'].values
+    backbone_forward = get_backbone_sequence(config["backbones"])[bb_type]
+    backbone_reverse = reverse_complement(backbone_forward)
+    return backbone_reverse
+
+
+### Start reading config file.
+SAMPLES = read_samples(config["sample_tsv"])
 input_dir = config["input_dir"]
 out_dir = config["out_dir"]
+
 
 input_bams = []
 for sample in SAMPLES["sample_name"].unique():
     input_bams += list(SAMPLES[SAMPLES["sample_name"] == sample]['bam_name'].values)
 input_bams = [opj(input_dir, input1) for input1 in input_bams]
+
 
 def get_run_name(wildcards):
     run_names = SAMPLES.loc[wildcards.sample_name]['run_name']
@@ -71,6 +85,8 @@ def get_run_name(wildcards):
 
 SAMPLES['combined_prefix'] = SAMPLES.apply(lambda x: x['sample_name'] + '_'+ x['run_name'], axis = 1)
 combine_dedup = [opj(out_dir, x+"_clean.bam")  for x in SAMPLES['combined_prefix']]
+
+
 rule all:
     input:
         input_bams,
@@ -82,7 +98,6 @@ rule all:
 rule split_by_backbone:
     input:
         bam=opj(input_dir, "{sample_name}_{run_name}.YM_gt_3.bam"),
-        bb=BB,
         ref=config['reference'],
     output:
         with_bb=opj(out_dir, "{sample_name}_{run_name}_reads_with_backbone.bam"),
@@ -126,15 +141,13 @@ rule deduplication_bam_with_bb:
               --ref {input.ref}
         """
 
-# backbone strings
-backbone_forward = get_backbone_sequence(config["backbones"])[bb_type]
-backbone_reverse = reverse_complement(backbone_forward)
 rule cutadapt_remove_bb:
     input:
         split_by_backbone = rules.deduplication_bam_with_bb.output.out_bam,
     params:
-        backbone_forward = backbone_forward,
-        backbone_reverse = backbone_reverse,
+        backbone_forward = get_backbone_forward,
+        backbone_reverse = get_backbone_reverse,
+
     output:
         fastq = temp( opj(out_dir,"{sample_name}_{run_name}-extracted.fastq.gz")),
         adapter_cleaned_with_bb_fastq = opj(out_dir,"{sample_name}_{run_name}_reads_with_backbone_removed_adapter.fastq"),
