@@ -76,8 +76,8 @@ rule all:
         input_bams,
         combine_dedup,
         expand(opj(out_dir, "{sample_name}_stats.txt"), sample_name=SAMPLES["sample_name"]),
-        expand(opj(out_dir, "{sample_name}.length.stats"), sample_name=SAMPLES["sample_name"])
-
+        expand(opj(out_dir, "{sample_name}_all_withBB.bam"), sample_name=SAMPLES["sample_name"]),
+        expand(opj(out_dir, "{sample_name}_all_noBB.bam"), sample_name=SAMPLES["sample_name"]),
 
 rule split_by_backbone:
     input:
@@ -87,8 +87,10 @@ rule split_by_backbone:
     output:
         with_bb=opj(out_dir, "{sample_name}_{run_name}_reads_with_backbone.bam"),
         no_bb=opj(out_dir, "{sample_name}_{run_name}_reads_without_backbone.bam"),
+    benchmark:
+        opj(out_dir,"benchmark/split_by_backbone/{sample_name}_{run_name}.tsv"),
     resources:
-        runtime_min=15,
+        runtime='1h',
         cpus = 1,
         mem_mb = 5000,
     priority: 50
@@ -108,11 +110,13 @@ rule deduplication_bam_with_bb:
         ref=config['reference'],
     output:
         out_bam=opj(out_dir, "{sample_name}_{run_name}_reads_with_backbone.dedup.bam"),
+    benchmark:
+        opj(out_dir,"benchmark/dedup_bam_with_bb/{sample_name}_{run_name}.tsv"),
     conda:
         "envs/dedup-pip.yaml"
     priority: 2
     resources:
-        runtime_min=400,
+        runtime='30h',
         cpus = 1,
         mem_mb = 10000,
     shell:
@@ -136,9 +140,11 @@ rule cutadapt_remove_bb:
         adapter_cleaned_with_bb_fastq = opj(out_dir,"{sample_name}_{run_name}_reads_with_backbone_removed_adapter.fastq"),
         info =  opj(out_dir,"{sample_name}_{run_name}-cutadapt.info"),
         summary = opj(out_dir,"{sample_name}_{run_name}-cutadapt.summary.txt"),
+    benchmark:
+        opj(out_dir,"benchmark/cutadapt_remove_bb/{sample_name}_{run_name}.tsv"),
     priority: 50
     resources:
-        runtime_min=60,
+        runtime='60m',
         cpus = 2,
         mem_mb = 5000,
     threads: 16
@@ -164,11 +170,14 @@ rule map_after_cutadapt:
     output:
         sam=temp(opj(out_dir, "{sample_name}_{run_name}_reads_with_backbone_removed_adapter.sam")),
         adapter_cleaned_with_bb=opj(out_dir, "{sample_name}_{run_name}_adapter_cleaned_deduplicated_with_backbone.bam"),
+    benchmark:
+        opj(out_dir,"benchmark/map_after_cutadapt/{sample_name}_{run_name}.tsv"),
+
     conda:
         "envs/align.yaml"
     priority: 50
     resources:
-        runtime_min=120,
+        runtime='2h',
         cpus = 32,
         mem_mb = 16000,
     shell:
@@ -186,11 +195,13 @@ rule deduplication_without_bb:
         ref=config['reference'],
     output:
         out_bam=opj(out_dir, "{sample_name}_{run_name}_dedup_noBB.bam"),
+    benchmark:
+        opj(out_dir,"benchmark/dedup_without_bb/{sample_name}_{run_name}.tsv"),
     conda:
         "envs/dedup-pip.yaml"
     priority: 2
     resources:
-        runtime_min=400,
+        runtime='24h',
         cpus = 1,
         mem_mb = 10000,
     shell:
@@ -210,8 +221,10 @@ rule combine_dedup:
     conda:
         "envs/align.yaml"
     priority: 50
+    benchmark:
+        opj(out_dir,"benchmark/combine_dedup/{sample_name}_{run_name}.tsv"),
     resources:
-        runtime_min=180,
+        runtime='3h',
         cpus = 2,
         mem_mb = 16000,
     shell:
@@ -229,8 +242,10 @@ rule merge_no_bb:
     conda:
         "envs/align.yaml"
     priority: 50
+    benchmark:
+        opj(out_dir,"benchmark/merge_no_bb/{sample_name}.tsv"),
     resources:
-        runtime_min=180,
+        runtime='3h',
         cpus = 2,
         mem_mb = 16000,
     shell:
@@ -248,8 +263,10 @@ rule merge_with_bb:
     conda:
         "envs/align.yaml"
     priority: 49
+    benchmark:
+        opj(out_dir,"benchmark/merge_with_bb/{sample_name}.tsv"),
     resources:
-        runtime_min=180,
+        runtime='3h',
         cpus = 2,
         mem_mb = 16000,
     shell:
@@ -264,11 +281,13 @@ rule merge_all:
         bams=get_all_bams_per_sample
     output:
         bam_per_sample_no_bb=opj(out_dir, "{sample_name}_clean_merge_runs.bam")
+    benchmark:
+        opj(out_dir,"benchmark/merge_all/{sample_name}.tsv"),
     conda:
         "envs/align.yaml"
     priority: 48
     resources:
-        runtime_min=180,
+        runtime='3h',
         cpus = 2,
         mem_mb = 16000,
     shell:
@@ -277,9 +296,28 @@ rule merge_all:
         samtools index {output.bam_per_sample_no_bb}
         """
 
+
+rule get_sample_stats:
+    input:
+        bam = rules.merge_all.output.bam_per_sample_no_bb
+    output:
+        stats = opj(out_dir, "{sample_name}_stats.txt")
+    conda:
+        "envs/align.yaml"
+    priority: 50
+    resources:
+        runtime='1h',
+        cpus = 2,
+        mem_mb = 16000,
+    shell:
+        """
+        scripts/get_stats.sh {input.bam} {output.stats}
+        """
+
 onsuccess:
     print("Workflow finished, no error")
     shell("mail -s 'Workflow-illumina finished no error' l.t.chen-4@umcutrecht.nl <  {log}" )
 onerror:
     print("An error occurred")
     shell("mail -s 'an error occurred' l.t.chen-4@umcutrecht.nl <  {log}" )
+
