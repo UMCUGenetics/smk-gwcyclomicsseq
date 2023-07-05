@@ -138,14 +138,16 @@ rule cutadapt_remove_bb:
         summary = opj(out_dir,"{sample_name}_{run_name}-cutadapt.summary.txt"),
     priority: 50
     resources:
-        runtime_min=30,
+        runtime_min=60,
         cpus = 2,
         mem_mb = 5000,
+    threads: 16
     conda:
         "envs/align.yaml"
     shell:
         """
-        bedtools bamtofastq -i {input.split_by_backbone} -fq {output.fastq};
+        samtools collate -@ {threads} -o {output.bam_sort_by_name} 
+        samtools fastq -0 {output.fastq} -n -O -t -T '*' -@ 16 {output.bam_sort_by_name}         
         cutadapt -e 0.00064 -a {params.backbone_forward} -a {params.backbone_reverse} \\
                             -g {params.backbone_forward} -g {params.backbone_reverse} \\
                             --info-file {output.info} -o {output.adapter_cleaned_with_bb_fastq} {output.fastq} > {output.summary}
