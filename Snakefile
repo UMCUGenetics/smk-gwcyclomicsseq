@@ -154,8 +154,8 @@ rule cutadapt_remove_bb:
         bam_sort_by_name = temp( opj(out_dir,"wBB/{sample_name}_{run_name}-collated.bam")),
         fastq = temp( opj(out_dir,"wBB/{sample_name}_{run_name}-extracted.fastq.gz")),
         adapter_cleaned_with_bb_fastq = opj(out_dir,"wBB/{sample_name}_{run_name}_reads_with_backbone_removed_adapter.fastq"),
-        info =  opj(out_dir,"{sample_name}_{run_name}-cutadapt.info"),
-        summary = opj(out_dir,"{sample_name}_{run_name}-cutadapt.summary.txt"),
+        info =  opj(out_dir,"stats/{sample_name}_{run_name}-cutadapt.info"),
+        summary = opj(out_dir,"stats/{sample_name}_{run_name}-cutadapt.summary.txt"),
     benchmark:
         opj(out_dir,"benchmark/cutadapt_remove_bb/{sample_name}_{run_name}.tsv"),
     priority: 50
