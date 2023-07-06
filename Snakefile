@@ -210,7 +210,7 @@ rule deduplication_without_bb:
         bam= rules.split_by_backbone.output.with_bb,
         ref=config['reference'],
     output:
-        out_bam=opj(out_dir, "{sample_name}_{run_name}_dedup_noBB.bam"),
+        out_bam=opj(out_dir, "noBB/{sample_name}_{run_name}_dedup_noBB.bam"),
     benchmark:
         opj(out_dir,"benchmark/dedup_without_bb/{sample_name}_{run_name}.tsv"),
     conda:
