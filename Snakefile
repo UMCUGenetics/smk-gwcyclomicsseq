@@ -101,8 +101,8 @@ rule split_by_backbone:
         bam=opj(input_dir, "{sample_name}_{run_name}.YM_gt_3.bam"),
         ref=config['reference'],
     output:
-        with_bb=opj(out_dir, "wBB/{sample_name}_{run_name}_wBB.bam"),
-        no_bb=opj(out_dir, "noBB/{sample_name}_{run_name}_noBB.bam"),
+        with_bb=opj(out_dir, "wBB/{sample_name}_{run_name}_reads_with_backbone.bam"),
+        no_bb=opj(out_dir, "noBB/{sample_name}_{run_name}_reads_without_backbone.bam"),
     benchmark:
         opj(out_dir,"benchmark/split_by_backbone/{sample_name}_{run_name}.tsv"),
     resources:
@@ -125,7 +125,7 @@ rule deduplication_bam_with_bb:
         bam= rules.split_by_backbone.output.with_bb,
         ref=config['reference'],
     output:
-        out_bam=opj(out_dir, "wBB/{sample_name}_{run_name}_wBB_dedup.bam"),
+        out_bam=opj(out_dir, "wBB/{sample_name}_{run_name}_reads_with_backbone.dedup.bam"),
     benchmark:
         opj(out_dir,"benchmark/dedup_bam_with_bb/{sample_name}_{run_name}.tsv"),
     conda:
@@ -152,10 +152,10 @@ rule cutadapt_remove_bb:
 
     output:
         bam_sort_by_name = temp( opj(out_dir,"wBB/{sample_name}_{run_name}-collated.bam")),
-        fastq = temp( opj(out_dir,"wBB/{sample_name}_{run_name}-wBB-extracted.fastq.gz")),
-        adapter_cleaned_with_bb_fastq = opj(out_dir,"wBB/{sample_name}_{run_name}_wBB_cutadapter.fastq"),
-        info =  opj(out_dir,"stats/{sample_name}_{run_name}-cutadapt.info"),
-        summary = opj(out_dir,"stats/{sample_name}_{run_name}-cutadapt.summary.txt"),
+        fastq = temp( opj(out_dir,"wBB/{sample_name}_{run_name}-extracted.fastq.gz")),
+        adapter_cleaned_with_bb_fastq = opj(out_dir,"wBB/{sample_name}_{run_name}_reads_with_backbone_removed_adapter.fastq"),
+        info =  opj(out_dir,"{sample_name}_{run_name}-cutadapt.info"),
+        summary = opj(out_dir,"{sample_name}_{run_name}-cutadapt.summary.txt"),
     benchmark:
         opj(out_dir,"benchmark/cutadapt_remove_bb/{sample_name}_{run_name}.tsv"),
     priority: 50
@@ -184,8 +184,8 @@ rule map_after_cutadapt:
     threads:
         16
     output:
-        sam=temp(opj(out_dir, "wBB/{sample_name}_{run_name}_wBB_cutadapt_mapped.sam")),
-        adapter_cleaned_with_bb=opj(out_dir, "wBB/{sample_name}_{run_name}_dedup_cutadapt_wBB.bam"),
+        sam=temp(opj(out_dir, "wBB/{sample_name}_{run_name}_reads_with_backbone_removed_adapter.sam")),
+        adapter_cleaned_with_bb=opj(out_dir, "wBB/{sample_name}_{run_name}_dedup_cutadapt.bam"),
     benchmark:
         opj(out_dir,"benchmark/map_after_cutadapt/{sample_name}_{run_name}.tsv"),
 
@@ -255,7 +255,7 @@ rule merge_no_bb:
     input:
         bams=get_no_bb_bams_per_sample
     output:
-        bam_per_sample_no_bb=opj(out_dir, "final_bam/only-noBB/{sample_name}_noBB.bam")
+        bam_per_sample_no_bb=opj(out_dir, "final_bam/only-noBB/{sample_name}_all_noBB.bam")
     conda:
         "envs/align.yaml"
     priority: 50
@@ -276,7 +276,7 @@ rule merge_with_bb:
     input:
         bams=get_w_bb_bams_per_sample
     output:
-        bam_per_sample_no_bb=opj(out_dir, "final_bam/only-wBB/{sample_name}_withBB.bam")
+        bam_per_sample_no_bb=opj(out_dir, "final_bam/only-wBB/{sample_name}_all_withBB.bam")
     conda:
         "envs/align.yaml"
     priority: 49
