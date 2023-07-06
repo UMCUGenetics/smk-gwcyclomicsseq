@@ -54,13 +54,13 @@ def get_all_bams_per_sample(wildcards):
 
 
 def get_backbone_forward(wildcards):
-    bb_type = SAMPLES[SAMPLES['sample_name'] == wildcards.sample_name]['bb_type'].values
+    bb_type = SAMPLES[SAMPLES['sample_name'] == wildcards.sample_name]['bb_type'].values[0]
     backbone_forward = get_backbone_sequence(config["backbones"])[bb_type]
     return backbone_forward
 
 
 def get_backbone_reverse(wildcards):
-    bb_type = SAMPLES[SAMPLES['sample_name'] == wildcards.sample_name]['bb_type'].values
+    bb_type = SAMPLES[SAMPLES['sample_name'] == wildcards.sample_name]['bb_type'].values[0]
     backbone_forward = get_backbone_sequence(config["backbones"])[bb_type]
     backbone_reverse = reverse_complement(backbone_forward)
     return backbone_reverse
@@ -150,6 +150,7 @@ rule cutadapt_remove_bb:
         backbone_reverse = get_backbone_reverse,
 
     output:
+        bam_sort_by_name = temp( opj(out_dir,"wBB/{sample_name}_{run_name}-collated.bam")),
         fastq = temp( opj(out_dir,"wBB/{sample_name}_{run_name}-extracted.fastq.gz")),
         adapter_cleaned_with_bb_fastq = opj(out_dir,"wBB/{sample_name}_{run_name}_reads_with_backbone_removed_adapter.fastq"),
         info =  opj(out_dir,"{sample_name}_{run_name}-cutadapt.info"),
@@ -166,7 +167,7 @@ rule cutadapt_remove_bb:
         "envs/align.yaml"
     shell:
         """
-        samtools collate -@ {threads} -o {output.bam_sort_by_name} 
+        samtools collate -@ {threads} -o {output.bam_sort_by_name} {input.split_by_backbone}
         samtools fastq -0 {output.fastq} -n -O -t -T '*' -@ 16 {output.bam_sort_by_name}         
         cutadapt -e 0.00064 -a {params.backbone_forward} -a {params.backbone_reverse} \\
                             -g {params.backbone_forward} -g {params.backbone_reverse} \\
@@ -196,7 +197,7 @@ rule map_after_cutadapt:
         mem_mb = 16000,
     shell:
         """
-        bwa mem -t {threads} {params.ref} {input.fastq} > {output.sam};
+        bwa mem -C -t {threads} {params.ref} {input.fastq} > {output.sam};
         samtools sort {output.sam} > {output.adapter_cleaned_with_bb};
         samtools index {output.adapter_cleaned_with_bb};
         """
@@ -330,8 +331,8 @@ rule get_sample_stats:
 
 onsuccess:
     print("Workflow finished, no error")
-    shell("mail -s 'Workflow-illumina finished no error' l.t.chen-4@umcutrecht.nl <  {log}" )
+    shell("mail -s 'Workflow smk-Cyclomicsseq finished no error' l.t.chen-4@umcutrecht.nl <  {log}" )
 onerror:
     print("An error occurred")
-    shell("mail -s 'an error occurred' l.t.chen-4@umcutrecht.nl <  {log}" )
+    shell("mail -s 'an error occurred smk-cyclomicsseq' l.t.chen-4@umcutrecht.nl <  {log}" )
 
