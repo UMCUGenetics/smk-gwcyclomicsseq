@@ -34,21 +34,21 @@ def read_samples(file):
 
 def get_no_bb_bams_per_sample(wildcards):
     run_names = SAMPLES[SAMPLES['sample_name'] == wildcards.sample_name]['run_name'].values
-    bam_files = [f"{wildcards}_{run_name}_dedup_noBB.bam" for run_name in run_names]
-    bam_files = [opj(out_dir,bamfile) for bamfile in bam_files]
+    bam_files = [f"noBB/{wildcards}_{run_name}_dedup_noBB.bam" for run_name in run_names]
+    bam_files = [opj(out_dir, bamfile) for bamfile in bam_files]
     return bam_files
 
 
 def get_w_bb_bams_per_sample(wildcards):
     run_names = SAMPLES[SAMPLES['sample_name'] == wildcards.sample_name]['run_name'].values
-    bam_files = [f"{wildcards}_{run_name}_adapter_cleaned_deduplicated_with_backbone.bam" for run_name in run_names]
+    bam_files = [f"wBB/{wildcards}_{run_name}_dedup_cutadapt.bam" for run_name in run_names]
     bam_files = [opj(out_dir,bamfile) for bamfile in bam_files]
     return bam_files
 
 
 def get_all_bams_per_sample(wildcards):
     run_names = SAMPLES[SAMPLES['sample_name'] == wildcards.sample_name]['run_name'].values
-    bam_files = [f"{wildcards}_{run_name}_clean.bam" for run_name in run_names]
+    bam_files = [f"final_bam/per-run/{wildcards}_{run_name}_clean.bam" for run_name in run_names]
     bam_files = [opj(out_dir,bamfile) for bamfile in bam_files]
     return bam_files
 
@@ -84,24 +84,25 @@ def get_run_name(wildcards):
 
 
 SAMPLES['combined_prefix'] = SAMPLES.apply(lambda x: x['sample_name'] + '_'+ x['run_name'], axis = 1)
-combine_dedup = [opj(out_dir, x+"_clean.bam")  for x in SAMPLES['combined_prefix']]
+combine_dedup = [opj(out_dir, "final_bam/per-run/"+ x+"_clean.bam")  for x in SAMPLES['combined_prefix']]
 
 
 rule all:
     input:
         input_bams,
         combine_dedup,
-        expand(opj(out_dir, "{sample_name}_stats.txt"), sample_name=SAMPLES["sample_name"]),
-        expand(opj(out_dir, "{sample_name}_all_withBB.bam"), sample_name=SAMPLES["sample_name"]),
-        expand(opj(out_dir, "{sample_name}_all_noBB.bam"), sample_name=SAMPLES["sample_name"]),
+        expand(opj(out_dir, "final_bam/only-wBB/{sample_name}_all_withBB.bam"), sample_name=SAMPLES["sample_name"]),
+        expand(opj(out_dir, "final_bam/only-noBB/{sample_name}_all_noBB.bam"), sample_name=SAMPLES["sample_name"]),
+        expand(opj(out_dir, "final_bam/{sample_name}_clean_merge_runs.bam"), sample_name=SAMPLES["sample_name"]),
+        expand(opj(out_dir,"stats/{sample_name}_stats.txt"),sample_name=SAMPLES["sample_name"]),
 
 rule split_by_backbone:
     input:
         bam=opj(input_dir, "{sample_name}_{run_name}.YM_gt_3.bam"),
         ref=config['reference'],
     output:
-        with_bb=opj(out_dir, "{sample_name}_{run_name}_reads_with_backbone.bam"),
-        no_bb=opj(out_dir, "{sample_name}_{run_name}_reads_without_backbone.bam"),
+        with_bb=opj(out_dir, "wBB/{sample_name}_{run_name}_reads_with_backbone.bam"),
+        no_bb=opj(out_dir, "noBB/{sample_name}_{run_name}_reads_without_backbone.bam"),
     benchmark:
         opj(out_dir,"benchmark/split_by_backbone/{sample_name}_{run_name}.tsv"),
     resources:
@@ -121,10 +122,10 @@ rule split_by_backbone:
 
 rule deduplication_bam_with_bb:
     input:
-        bam=opj(out_dir, "{sample_name}_{run_name}_reads_with_backbone.bam"),
+        bam= rules.split_by_backbone.output.with_bb,
         ref=config['reference'],
     output:
-        out_bam=opj(out_dir, "{sample_name}_{run_name}_reads_with_backbone.dedup.bam"),
+        out_bam=opj(out_dir, "wBB/{sample_name}_{run_name}_reads_with_backbone.dedup.bam"),
     benchmark:
         opj(out_dir,"benchmark/dedup_bam_with_bb/{sample_name}_{run_name}.tsv"),
     conda:
@@ -149,8 +150,8 @@ rule cutadapt_remove_bb:
         backbone_reverse = get_backbone_reverse,
 
     output:
-        fastq = temp( opj(out_dir,"{sample_name}_{run_name}-extracted.fastq.gz")),
-        adapter_cleaned_with_bb_fastq = opj(out_dir,"{sample_name}_{run_name}_reads_with_backbone_removed_adapter.fastq"),
+        fastq = temp( opj(out_dir,"wBB/{sample_name}_{run_name}-extracted.fastq.gz")),
+        adapter_cleaned_with_bb_fastq = opj(out_dir,"wBB/{sample_name}_{run_name}_reads_with_backbone_removed_adapter.fastq"),
         info =  opj(out_dir,"{sample_name}_{run_name}-cutadapt.info"),
         summary = opj(out_dir,"{sample_name}_{run_name}-cutadapt.summary.txt"),
     benchmark:
@@ -181,8 +182,8 @@ rule map_after_cutadapt:
     threads:
         16
     output:
-        sam=temp(opj(out_dir, "{sample_name}_{run_name}_reads_with_backbone_removed_adapter.sam")),
-        adapter_cleaned_with_bb=opj(out_dir, "{sample_name}_{run_name}_adapter_cleaned_deduplicated_with_backbone.bam"),
+        sam=temp(opj(out_dir, "wBB/{sample_name}_{run_name}_reads_with_backbone_removed_adapter.sam")),
+        adapter_cleaned_with_bb=opj(out_dir, "wBB/{sample_name}_{run_name}_dedup_cutadapt.bam"),
     benchmark:
         opj(out_dir,"benchmark/map_after_cutadapt/{sample_name}_{run_name}.tsv"),
 
@@ -204,7 +205,7 @@ rule map_after_cutadapt:
 
 rule deduplication_without_bb:
     input:
-        bam=opj(out_dir, "{sample_name}_{run_name}_reads_without_backbone.bam"),
+        bam= rules.split_by_backbone.output.with_bb,
         ref=config['reference'],
     output:
         out_bam=opj(out_dir, "{sample_name}_{run_name}_dedup_noBB.bam"),
@@ -227,10 +228,10 @@ rule deduplication_without_bb:
 
 rule combine_dedup:
     input:
-        dedup_with_bb=opj(out_dir, "{sample_name}_{run_name}_adapter_cleaned_deduplicated_with_backbone.bam"),
+        dedup_with_bb=rules.map_after_cutadapt.output.adapter_cleaned_with_bb,
         dedup_no_bb=rules.deduplication_without_bb.output.out_bam,
     output:
-        dedup_combined=opj(out_dir, "{sample_name}_{run_name}_clean.bam"),
+        dedup_combined=opj(out_dir, "final_bam/per-run/{sample_name}_{run_name}_clean.bam"),
     conda:
         "envs/align.yaml"
     priority: 50
@@ -251,7 +252,7 @@ rule merge_no_bb:
     input:
         bams=get_no_bb_bams_per_sample
     output:
-        bam_per_sample_no_bb=opj(out_dir, "{sample_name}_all_noBB.bam")
+        bam_per_sample_no_bb=opj(out_dir, "final_bam/only-noBB/{sample_name}_all_noBB.bam")
     conda:
         "envs/align.yaml"
     priority: 50
@@ -272,7 +273,7 @@ rule merge_with_bb:
     input:
         bams=get_w_bb_bams_per_sample
     output:
-        bam_per_sample_no_bb=opj(out_dir, "{sample_name}_all_withBB.bam")
+        bam_per_sample_no_bb=opj(out_dir, "final_bam/only-wBB/{sample_name}_all_withBB.bam")
     conda:
         "envs/align.yaml"
     priority: 49
@@ -293,7 +294,7 @@ rule merge_all:
     input:
         bams=get_all_bams_per_sample
     output:
-        bam_per_sample_no_bb=opj(out_dir, "{sample_name}_clean_merge_runs.bam")
+        bam_per_sample_no_bb=opj(out_dir, "final_bam/{sample_name}_clean_merge_runs.bam")
     benchmark:
         opj(out_dir,"benchmark/merge_all/{sample_name}.tsv"),
     conda:
@@ -314,7 +315,7 @@ rule get_sample_stats:
     input:
         bam = rules.merge_all.output.bam_per_sample_no_bb
     output:
-        stats = opj(out_dir, "{sample_name}_stats.txt")
+        stats = opj(out_dir, "stats/{sample_name}_stats.txt")
     conda:
         "envs/align.yaml"
     priority: 50
