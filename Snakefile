@@ -139,7 +139,8 @@ rule deduplication_bam_with_bb:
         """
         dedup --read_bam {input.bam} \\
               --out_bam {output.out_bam} \\
-              --ref {input.ref}
+              --ref {input.ref} \\
+              --merge_max 4
         """
 
 rule cutadapt_remove_bb:
@@ -223,7 +224,8 @@ rule deduplication_without_bb:
         """
         dedup --read_bam {input.bam} \\
               --out_bam {output.out_bam} \\
-              --ref {input.ref}
+              --ref {input.ref} \\
+              --merge_max 5
         """
 
 
