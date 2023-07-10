@@ -225,7 +225,7 @@ rule deduplication_without_bb:
         dedup --read_bam {input.bam} \\
               --out_bam {output.out_bam} \\
               --ref {input.ref} \\
-              --merge_max 5
+              --merge_max 4
         """
 
 
