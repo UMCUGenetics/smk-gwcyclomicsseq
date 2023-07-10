@@ -207,7 +207,7 @@ rule map_after_cutadapt:
 
 rule deduplication_without_bb:
     input:
-        bam= rules.split_by_backbone.output.with_bb,
+        bam= rules.split_by_backbone.output.no_bb,
         ref=config['reference'],
     output:
         out_bam=opj(out_dir, "noBB/{sample_name}_{run_name}_dedup_noBB.bam"),
