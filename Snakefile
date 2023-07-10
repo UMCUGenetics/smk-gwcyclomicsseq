@@ -126,6 +126,8 @@ rule deduplication_bam_with_bb:
         ref=config['reference'],
     output:
         out_bam=opj(out_dir, "wBB/{sample_name}_{run_name}_reads_with_backbone.dedup.bam"),
+    params:
+        merge_max= config["merge_max"],
     benchmark:
         opj(out_dir,"benchmark/dedup_bam_with_bb/{sample_name}_{run_name}.tsv"),
     conda:
@@ -140,7 +142,7 @@ rule deduplication_bam_with_bb:
         dedup --read_bam {input.bam} \\
               --out_bam {output.out_bam} \\
               --ref {input.ref} \\
-              --merge_max 4
+              --merge_max {params.merge_max}
         """
 
 rule cutadapt_remove_bb:
@@ -211,6 +213,8 @@ rule deduplication_without_bb:
         ref=config['reference'],
     output:
         out_bam=opj(out_dir, "noBB/{sample_name}_{run_name}_dedup_noBB.bam"),
+    params:
+        merge_max= config["merge_max"],
     benchmark:
         opj(out_dir,"benchmark/dedup_without_bb/{sample_name}_{run_name}.tsv"),
     conda:
@@ -225,7 +229,7 @@ rule deduplication_without_bb:
         dedup --read_bam {input.bam} \\
               --out_bam {output.out_bam} \\
               --ref {input.ref} \\
-              --merge_max 4
+              --merge_max {params.merge_max}
         """
 
 
