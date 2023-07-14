@@ -2,7 +2,7 @@
 import pandas as pd
 from os.path import join as opj
 wildcard_constraints:
-    sample_name = '[^_\W]+'
+    sample_name = '[\w-]+'
 
 
 complement_translate = str.maketrans('ATCGNatcgn', 'TAGCNtagcn')
